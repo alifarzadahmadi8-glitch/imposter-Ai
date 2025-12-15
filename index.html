@@ -1,0 +1,223 @@
+# Create a fully ready, app-style, pass-and-play Imposter game with screen hiding
+
+html_content = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Imposter – Pass & Play</title>
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: #0b0e1a;
+  color: #fff;
+}
+.screen {
+  display: none;
+  min-height: 100vh;
+  padding: 24px;
+  text-align: center;
+}
+.active { display: block; }
+.card {
+  background: #161a33;
+  border-radius: 16px;
+  padding: 20px;
+  max-width: 420px;
+  margin: 0 auto;
+}
+h1, h2 { margin-top: 0; }
+select, input {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 10px;
+  border: none;
+  font-size: 16px;
+}
+button {
+  width: 100%;
+  padding: 14px;
+  border-radius: 14px;
+  border: none;
+  font-size: 18px;
+  background: #6c7cff;
+  color: white;
+}
+button.secondary {
+  background: #2a2f5a;
+  margin-top: 10px;
+}
+.hidden-text {
+  font-size: 26px;
+  letter-spacing: 4px;
+}
+.footer {
+  opacity: 0.6;
+  font-size: 13px;
+  margin-top: 20px;
+}
+</style>
+</head>
+<body>
+
+<!-- SETUP -->
+<div class="screen active" id="setup">
+  <div class="card">
+    <h1>Imposter</h1>
+    <p>Pass & Play Party Game</p>
+
+    <label>Players (3–10)</label>
+    <input id="players" type="number" min="3" max="10" value="5">
+
+    <label>Imposters</label>
+    <select id="imposters">
+      <option value="1">1</option>
+      <option value="2">2</option>
+    </select>
+
+    <label>Category</label>
+    <select id="category"></select>
+
+    <button onclick="startGame()">Start Game</button>
+  </div>
+</div>
+
+<!-- HANDOVER -->
+<div class="screen" id="handover">
+  <div class="card">
+    <h2 id="handoverText">Pass to Player 1</h2>
+    <p class="hidden-text">🔒 SCREEN HIDDEN</p>
+    <button onclick="reveal()">Reveal</button>
+  </div>
+</div>
+
+<!-- REVEAL -->
+<div class="screen" id="reveal">
+  <div class="card">
+    <h2 id="playerTitle"></h2>
+    <h1 id="role"></h1>
+    <h2 id="word"></h2>
+    <p id="hint"></p>
+    <button onclick="nextPlayer()">Hide & Pass</button>
+  </div>
+</div>
+
+<!-- PLAY -->
+<div class="screen" id="play">
+  <div class="card">
+    <h1>Game Time</h1>
+    <p>Everyone discusses.</p>
+    <ul style="text-align:left">
+      <li>Say one sentence about the word</li>
+      <li>Do NOT say the word</li>
+      <li>Vote out imposters</li>
+    </ul>
+    <button onclick="resetGame()">New Game</button>
+  </div>
+</div>
+
+<script>
+const categories = {
+  "Soccer Players": [
+    "Lionel Messi","Cristiano Ronaldo","Neymar","Mbappe","Haaland","De Bruyne","Salah","Modric","Benzema","Lewandowski",
+    "Kane","Bellingham","Vinicius Jr","Rodri","Bernardo Silva","Griezmann","Dybala","Son","Mane","Mahrez",
+    "Bruno Fernandes","Rashford","Saka","Foden","Pedri","Gavi","Musiala","Osimhen","Hakimi","Davies",
+    "Van Dijk","Ruben Dias","Courtois","Neuer","Ter Stegen","Alisson","Ederson","Panav Singh 711","Sayed Amir Mohamd","Giroud",
+    "Suarez","Cavani","Ibrahimovic","Pogba","Kante","Casemiro","Odegaard","Rice","Saliba","Martinelli"
+  ],
+  "Famous Football Clubs": [
+    "Real Madrid","Barcelona","Man United","Man City","Liverpool","Arsenal","Chelsea","Tottenham","Bayern","Dortmund",
+    "PSG","Juventus","AC Milan","Inter Milan","Napoli","Roma","Atletico Madrid","Sevilla","Ajax","PSV",
+    "Porto","Benfica","Sporting","Celtic","Rangers","Galatasaray","Fenerbahce","Besiktas","Al Hilal","Al Nassr",
+    "Flamengo","Palmeiras","Boca Juniors","River Plate","Santos","Corinthians","Monterrey","Club America","LA Galaxy","Inter Miami",
+    "Toronto FC","Vancouver Whitecaps","NYCFC","RB Leipzig","RB Salzburg","Atalanta","Lyon","Marseille","Fiorentina","West Ham"
+  ],
+  "Clash Royale Cards": [
+    "Knight","Archers","Goblins","Giant","PEKKA","Wizard","Musketeer","Valkyrie","Mini PEKKA","Hog Rider",
+    "Balloon","Baby Dragon","Inferno Dragon","Electro Dragon","Skeleton Army","Mega Knight","Royal Giant","Elite Barbarians","Barbarians","Battle Ram",
+    "Prince","Dark Prince","Bandit","Royal Ghost","Golden Knight","Skeleton King","Mighty Miner","Monk","Firecracker","Dart Goblin",
+    "Sparky","Electro Wizard","Ice Wizard","Magic Archer","Mother Witch","Witch","Night Witch","Bowler","Executioner","Cannon Cart",
+    "Goblin Barrel","Graveyard","Rocket","Fireball","Lightning","Freeze","Poison","Tornado","Mirror"
+  ],
+  "Famous Cities": [
+    "New York","Los Angeles","Toronto","Vancouver","London","Paris","Berlin","Rome","Madrid","Barcelona",
+    "Lisbon","Amsterdam","Vienna","Prague","Budapest","Athens","Istanbul","Dubai","Abu Dhabi","Riyadh",
+    "Jeddah","Cairo","Casablanca","Tokyo","Osaka","Seoul","Beijing","Shanghai","Hong Kong","Singapore"
+  ],
+  "Famous Countries": [
+    "Canada","USA","Mexico","Brazil","Argentina","UK","France","Germany","Italy","Spain",
+    "Portugal","Netherlands","Belgium","Switzerland","Sweden","Norway","Denmark","Finland","Russia","Ukraine",
+    "China","Japan","South Korea","India","Pakistan","Saudi Arabia","UAE","Qatar","Turkey","Australia"
+  ]
+};
+
+const categorySelect = document.getElementById("category");
+Object.keys(categories).forEach(c => {
+  const o = document.createElement("option");
+  o.value = c; o.textContent = c;
+  categorySelect.appendChild(o);
+});
+
+let totalPlayers, roles = [], word, current = 1;
+
+function startGame() {
+  totalPlayers = +players.value;
+  const imp = +imposters.value;
+  if (imp >= totalPlayers) return alert("Too many imposters");
+
+  word = categories[category.value][Math.floor(Math.random()*categories[category.value].length)];
+  roles = Array(totalPlayers).fill("Crewmate");
+  let chosen = [];
+  while (chosen.length < imp) {
+    let r = Math.floor(Math.random()*totalPlayers);
+    if (!chosen.includes(r)) chosen.push(r);
+  }
+  chosen.forEach(i => roles[i] = "Imposter");
+
+  show("handover");
+}
+
+function reveal() {
+  playerTitle.textContent = "Player " + current;
+  const role = roles[current-1];
+  roleText = role;
+  roleDisplay = document.getElementById("role");
+  roleDisplay.textContent = role;
+  document.getElementById("word").textContent = role === "Imposter" ? "???" : word;
+  document.getElementById("hint").textContent = role === "Imposter" ? "Blend in!" : "Don't say the word";
+  show("reveal");
+}
+
+function nextPlayer() {
+  current++;
+  if (current > totalPlayers) show("play");
+  else {
+    document.getElementById("handoverText").textContent = "Pass to Player " + current;
+    show("handover");
+  }
+}
+
+function resetGame() {
+  current = 1;
+  show("setup");
+}
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+</script>
+
+</body>
+</html>
+"""
+
+path = "/mnt/data/imposter_pass_play_app.html"
+with open(path, "w", encoding="utf-8") as f:
+    f.write(html_content)
+
+path
