@@ -1,26 +1,27 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Imposter App</title>
 
 <style>
-body {
+body{
   margin:0;
   background:#0b0e1a;
   color:white;
   font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto;
 }
-.screen { display:none; padding:20px; min-height:100vh; text-align:center; }
-.active { display:block; }
-.card {
+.screen{display:none;min-height:100vh;padding:20px;text-align:center;}
+.active{display:block;}
+.card{
   background:#161a33;
   border-radius:18px;
   padding:20px;
   max-width:420px;
   margin:auto;
 }
-button {
+button{
   width:100%;
   padding:15px;
   font-size:18px;
@@ -29,123 +30,176 @@ button {
   background:#6c7cff;
   color:white;
 }
-img {
-  width:100%;
-  border-radius:12px;
-  margin:15px 0;
-}
-select,input {
+select,input{
   width:100%;
   padding:12px;
   border-radius:12px;
   border:none;
   margin:10px 0;
 }
+img{
+  width:100%;
+  border-radius:14px;
+  margin-top:15px;
+}
+.lock{letter-spacing:4px;font-size:22px;}
 </style>
 </head>
 
 <body>
 
+<!-- SETUP -->
 <div id="setup" class="screen active">
   <div class="card">
     <h1>IMPOSTER</h1>
+
+    <label>Players (3–10)</label>
     <input id="players" type="number" min="3" max="10" value="5">
+
+    <label>Imposters</label>
     <select id="imposters">
-      <option value="1">1 Imposter</option>
-      <option value="2">2 Imposters</option>
+      <option value="1">1</option>
+      <option value="2">2</option>
     </select>
+
+    <label>Category</label>
     <select id="category"></select>
-    <select id="troll">
-      <option value="off">Normal Mode</option>
-      <option value="on">🤡 Troll Imposter Mode</option>
-    </select>
-    <button onclick="start()">Start</button>
+
+    <button onclick="startGame()">Start Game</button>
   </div>
 </div>
 
+<!-- PASS -->
 <div id="pass" class="screen">
   <div class="card">
     <h2 id="passText"></h2>
-    <p>🔒 Screen Hidden</p>
+    <div class="lock">🔒 🔒 🔒</div>
     <button onclick="reveal()">Reveal</button>
   </div>
 </div>
 
+<!-- REVEAL -->
 <div id="reveal" class="screen">
   <div class="card">
     <h2 id="playerTitle"></h2>
     <h1 id="role"></h1>
     <img id="image">
     <h2 id="word"></h2>
-    <button onclick="next()">Hide & Pass</button>
+    <button onclick="nextPlayer()">Hide & Pass</button>
   </div>
 </div>
 
+<!-- END -->
 <div id="end" class="screen">
   <div class="card">
-    <h1>DISCUSS & VOTE</h1>
+    <h1>Discuss & Vote</h1>
     <button onclick="location.reload()">New Game</button>
   </div>
 </div>
 
 <script>
+/* ===== CATEGORIES ===== */
 const categories = {
-  "Football Players": ["Messi","Ronaldo","Mbappe","Haaland"],
-  "Football 2": ["Panav Singh"],
-  "Countries": ["Canada","Brazil","France","Japan"],
-  "Cities": ["Toronto","London","Paris","Tokyo"],
-  "Clash Royale": ["Mega Knight","Hog Rider","Pekka"],
-  "Fun – Troll": ["Worst excuse","Biggest lie","Most overrated thing"]
+  "Football Players": [
+    "Lionel Messi","Cristiano Ronaldo","Kylian Mbappe","Erling Haaland",
+    "Neymar Jr","Kevin De Bruyne","Mohamed Salah","Jude Bellingham"
+  ],
+  "Football 2": [
+    "Panav Singh"
+  ],
+  "Famous Cities": [
+    "Toronto","London","Paris","Tokyo","Dubai","New York"
+  ],
+  "Famous Countries": [
+    "Canada","Brazil","France","Japan","Germany","Argentina"
+  ],
+  "Clash Royale Cards": [
+    "Mega Knight","Hog Rider","Pekka","Electro Wizard","Goblin Barrel"
+  ],
+  "Fun / Troll": [
+    "Worst excuse ever","Biggest lie","Most overrated thing",
+    "Something everyone pretends to like"
+  ]
 };
 
-const imageURL = (cat, word) => {
-  if(cat==="Countries") return `https://flagcdn.com/w320/${word.slice(0,2).toLowerCase()}.png`;
-  return `https://source.unsplash.com/400x300/?${word}`;
-};
+/* ===== IMAGE LOGIC ===== */
+function getImage(category, word){
+  if(category === "Famous Countries"){
+    return "https://source.unsplash.com/600x400/?"+word+" flag";
+  }
+  if(category === "Football Players" || category === "Football 2"){
+    return "https://source.unsplash.com/600x400/?"+word+" football player";
+  }
+  return "https://source.unsplash.com/600x400/?"+word;
+}
 
-const catSelect=document.getElementById("category");
+/* ===== SETUP ===== */
+const categorySelect = document.getElementById("category");
 Object.keys(categories).forEach(c=>{
-  let o=document.createElement("option");
+  const o=document.createElement("option");
   o.value=c; o.textContent=c;
-  catSelect.appendChild(o);
+  categorySelect.appendChild(o);
 });
 
-let total,roles=[],current=1,word,troll;
+let totalPlayers=0;
+let currentPlayer=1;
+let roles=[];
+let chosenWord="";
 
+/* ===== FUNCTIONS ===== */
 function show(id){
   document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 }
 
-function start(){
-  total=+players.value;
-  troll=trollSelect.value;
-  const imp=+imposters.value;
-  const list=categories[category.value];
-  word=list[Math.floor(Math.random()*list.length)];
-  roles=Array(total).fill("Crewmate");
-  while(roles.filter(r=>r==="Imposter").length<imp){
-    roles[Math.floor(Math.random()*total)]="Imposter";
+function startGame(){
+  totalPlayers = +document.getElementById("players").value;
+  const imp = +document.getElementById("imposters").value;
+
+  if(imp >= totalPlayers){
+    alert("Too many imposters");
+    return;
   }
-  passText.textContent="Pass to Player 1";
+
+  const list = categories[categorySelect.value];
+  chosenWord = list[Math.floor(Math.random()*list.length)];
+
+  roles = Array(totalPlayers).fill("Crewmate");
+  let count=0;
+  while(count < imp){
+    let r=Math.floor(Math.random()*totalPlayers);
+    if(roles[r] !== "Imposter"){
+      roles[r]="Imposter";
+      count++;
+    }
+  }
+
+  document.getElementById("passText").textContent="Pass to Player 1";
   show("pass");
 }
 
 function reveal(){
-  playerTitle.textContent="Player "+current;
-  const r=roles[current-1];
-  role.textContent=r;
-  let shownWord = (r==="Imposter" && troll==="on") ? "Something else 😈" : (r==="Imposter"?"???":word);
-  wordEl.textContent=shownWord;
-  image.src=imageURL(category.value,shownWord);
+  document.getElementById("playerTitle").textContent="Player "+currentPlayer;
+  const role = roles[currentPlayer-1];
+  document.getElementById("role").textContent=role;
+
+  if(role === "Imposter"){
+    document.getElementById("word").textContent="???";
+    document.getElementById("image").src="https://source.unsplash.com/600x400/?mystery";
+  }else{
+    document.getElementById("word").textContent=chosenWord;
+    document.getElementById("image").src=getImage(categorySelect.value, chosenWord);
+  }
+
   show("reveal");
 }
 
-function next(){
-  current++;
-  if(current>total) show("end");
-  else{
-    passText.textContent="Pass to Player "+current;
+function nextPlayer(){
+  currentPlayer++;
+  if(currentPlayer > totalPlayers){
+    show("end");
+  }else{
+    document.getElementById("passText").textContent="Pass to Player "+currentPlayer;
     show("pass");
   }
 }
