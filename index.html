@@ -1,223 +1,155 @@
-# Create a fully ready, app-style, pass-and-play Imposter game with screen hiding
-
-html_content = """
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Imposter – Pass & Play</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Imposter App</title>
+
 <style>
-* { box-sizing: border-box; }
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-  background: #0b0e1a;
-  color: #fff;
+  margin:0;
+  background:#0b0e1a;
+  color:white;
+  font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto;
 }
-.screen {
-  display: none;
-  min-height: 100vh;
-  padding: 24px;
-  text-align: center;
-}
-.active { display: block; }
+.screen { display:none; padding:20px; min-height:100vh; text-align:center; }
+.active { display:block; }
 .card {
-  background: #161a33;
-  border-radius: 16px;
-  padding: 20px;
-  max-width: 420px;
-  margin: 0 auto;
-}
-h1, h2 { margin-top: 0; }
-select, input {
-  width: 100%;
-  padding: 12px;
-  margin: 10px 0;
-  border-radius: 10px;
-  border: none;
-  font-size: 16px;
+  background:#161a33;
+  border-radius:18px;
+  padding:20px;
+  max-width:420px;
+  margin:auto;
 }
 button {
-  width: 100%;
-  padding: 14px;
-  border-radius: 14px;
-  border: none;
-  font-size: 18px;
-  background: #6c7cff;
-  color: white;
+  width:100%;
+  padding:15px;
+  font-size:18px;
+  border:none;
+  border-radius:14px;
+  background:#6c7cff;
+  color:white;
 }
-button.secondary {
-  background: #2a2f5a;
-  margin-top: 10px;
+img {
+  width:100%;
+  border-radius:12px;
+  margin:15px 0;
 }
-.hidden-text {
-  font-size: 26px;
-  letter-spacing: 4px;
-}
-.footer {
-  opacity: 0.6;
-  font-size: 13px;
-  margin-top: 20px;
+select,input {
+  width:100%;
+  padding:12px;
+  border-radius:12px;
+  border:none;
+  margin:10px 0;
 }
 </style>
 </head>
+
 <body>
 
-<!-- SETUP -->
-<div class="screen active" id="setup">
+<div id="setup" class="screen active">
   <div class="card">
-    <h1>Imposter</h1>
-    <p>Pass & Play Party Game</p>
-
-    <label>Players (3–10)</label>
+    <h1>IMPOSTER</h1>
     <input id="players" type="number" min="3" max="10" value="5">
-
-    <label>Imposters</label>
     <select id="imposters">
-      <option value="1">1</option>
-      <option value="2">2</option>
+      <option value="1">1 Imposter</option>
+      <option value="2">2 Imposters</option>
     </select>
-
-    <label>Category</label>
     <select id="category"></select>
-
-    <button onclick="startGame()">Start Game</button>
+    <select id="troll">
+      <option value="off">Normal Mode</option>
+      <option value="on">🤡 Troll Imposter Mode</option>
+    </select>
+    <button onclick="start()">Start</button>
   </div>
 </div>
 
-<!-- HANDOVER -->
-<div class="screen" id="handover">
+<div id="pass" class="screen">
   <div class="card">
-    <h2 id="handoverText">Pass to Player 1</h2>
-    <p class="hidden-text">🔒 SCREEN HIDDEN</p>
+    <h2 id="passText"></h2>
+    <p>🔒 Screen Hidden</p>
     <button onclick="reveal()">Reveal</button>
   </div>
 </div>
 
-<!-- REVEAL -->
-<div class="screen" id="reveal">
+<div id="reveal" class="screen">
   <div class="card">
     <h2 id="playerTitle"></h2>
     <h1 id="role"></h1>
+    <img id="image">
     <h2 id="word"></h2>
-    <p id="hint"></p>
-    <button onclick="nextPlayer()">Hide & Pass</button>
+    <button onclick="next()">Hide & Pass</button>
   </div>
 </div>
 
-<!-- PLAY -->
-<div class="screen" id="play">
+<div id="end" class="screen">
   <div class="card">
-    <h1>Game Time</h1>
-    <p>Everyone discusses.</p>
-    <ul style="text-align:left">
-      <li>Say one sentence about the word</li>
-      <li>Do NOT say the word</li>
-      <li>Vote out imposters</li>
-    </ul>
-    <button onclick="resetGame()">New Game</button>
+    <h1>DISCUSS & VOTE</h1>
+    <button onclick="location.reload()">New Game</button>
   </div>
 </div>
 
 <script>
 const categories = {
-  "Soccer Players": [
-    "Lionel Messi","Cristiano Ronaldo","Neymar","Mbappe","Haaland","De Bruyne","Salah","Modric","Benzema","Lewandowski",
-    "Kane","Bellingham","Vinicius Jr","Rodri","Bernardo Silva","Griezmann","Dybala","Son","Mane","Mahrez",
-    "Bruno Fernandes","Rashford","Saka","Foden","Pedri","Gavi","Musiala","Osimhen","Hakimi","Davies",
-    "Van Dijk","Ruben Dias","Courtois","Neuer","Ter Stegen","Alisson","Ederson","Panav Singh 711","Sayed Amir Mohamd","Giroud",
-    "Suarez","Cavani","Ibrahimovic","Pogba","Kante","Casemiro","Odegaard","Rice","Saliba","Martinelli"
-  ],
-  "Famous Football Clubs": [
-    "Real Madrid","Barcelona","Man United","Man City","Liverpool","Arsenal","Chelsea","Tottenham","Bayern","Dortmund",
-    "PSG","Juventus","AC Milan","Inter Milan","Napoli","Roma","Atletico Madrid","Sevilla","Ajax","PSV",
-    "Porto","Benfica","Sporting","Celtic","Rangers","Galatasaray","Fenerbahce","Besiktas","Al Hilal","Al Nassr",
-    "Flamengo","Palmeiras","Boca Juniors","River Plate","Santos","Corinthians","Monterrey","Club America","LA Galaxy","Inter Miami",
-    "Toronto FC","Vancouver Whitecaps","NYCFC","RB Leipzig","RB Salzburg","Atalanta","Lyon","Marseille","Fiorentina","West Ham"
-  ],
-  "Clash Royale Cards": [
-    "Knight","Archers","Goblins","Giant","PEKKA","Wizard","Musketeer","Valkyrie","Mini PEKKA","Hog Rider",
-    "Balloon","Baby Dragon","Inferno Dragon","Electro Dragon","Skeleton Army","Mega Knight","Royal Giant","Elite Barbarians","Barbarians","Battle Ram",
-    "Prince","Dark Prince","Bandit","Royal Ghost","Golden Knight","Skeleton King","Mighty Miner","Monk","Firecracker","Dart Goblin",
-    "Sparky","Electro Wizard","Ice Wizard","Magic Archer","Mother Witch","Witch","Night Witch","Bowler","Executioner","Cannon Cart",
-    "Goblin Barrel","Graveyard","Rocket","Fireball","Lightning","Freeze","Poison","Tornado","Mirror"
-  ],
-  "Famous Cities": [
-    "New York","Los Angeles","Toronto","Vancouver","London","Paris","Berlin","Rome","Madrid","Barcelona",
-    "Lisbon","Amsterdam","Vienna","Prague","Budapest","Athens","Istanbul","Dubai","Abu Dhabi","Riyadh",
-    "Jeddah","Cairo","Casablanca","Tokyo","Osaka","Seoul","Beijing","Shanghai","Hong Kong","Singapore"
-  ],
-  "Famous Countries": [
-    "Canada","USA","Mexico","Brazil","Argentina","UK","France","Germany","Italy","Spain",
-    "Portugal","Netherlands","Belgium","Switzerland","Sweden","Norway","Denmark","Finland","Russia","Ukraine",
-    "China","Japan","South Korea","India","Pakistan","Saudi Arabia","UAE","Qatar","Turkey","Australia"
-  ]
+  "Football Players": ["Messi","Ronaldo","Mbappe","Haaland"],
+  "Football 2": ["Panav Singh"],
+  "Countries": ["Canada","Brazil","France","Japan"],
+  "Cities": ["Toronto","London","Paris","Tokyo"],
+  "Clash Royale": ["Mega Knight","Hog Rider","Pekka"],
+  "Fun – Troll": ["Worst excuse","Biggest lie","Most overrated thing"]
 };
 
-const categorySelect = document.getElementById("category");
-Object.keys(categories).forEach(c => {
-  const o = document.createElement("option");
-  o.value = c; o.textContent = c;
-  categorySelect.appendChild(o);
+const imageURL = (cat, word) => {
+  if(cat==="Countries") return `https://flagcdn.com/w320/${word.slice(0,2).toLowerCase()}.png`;
+  return `https://source.unsplash.com/400x300/?${word}`;
+};
+
+const catSelect=document.getElementById("category");
+Object.keys(categories).forEach(c=>{
+  let o=document.createElement("option");
+  o.value=c; o.textContent=c;
+  catSelect.appendChild(o);
 });
 
-let totalPlayers, roles = [], word, current = 1;
+let total,roles=[],current=1,word,troll;
 
-function startGame() {
-  totalPlayers = +players.value;
-  const imp = +imposters.value;
-  if (imp >= totalPlayers) return alert("Too many imposters");
-
-  word = categories[category.value][Math.floor(Math.random()*categories[category.value].length)];
-  roles = Array(totalPlayers).fill("Crewmate");
-  let chosen = [];
-  while (chosen.length < imp) {
-    let r = Math.floor(Math.random()*totalPlayers);
-    if (!chosen.includes(r)) chosen.push(r);
-  }
-  chosen.forEach(i => roles[i] = "Imposter");
-
-  show("handover");
+function show(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
 }
 
-function reveal() {
-  playerTitle.textContent = "Player " + current;
-  const role = roles[current-1];
-  roleText = role;
-  roleDisplay = document.getElementById("role");
-  roleDisplay.textContent = role;
-  document.getElementById("word").textContent = role === "Imposter" ? "???" : word;
-  document.getElementById("hint").textContent = role === "Imposter" ? "Blend in!" : "Don't say the word";
+function start(){
+  total=+players.value;
+  troll=trollSelect.value;
+  const imp=+imposters.value;
+  const list=categories[category.value];
+  word=list[Math.floor(Math.random()*list.length)];
+  roles=Array(total).fill("Crewmate");
+  while(roles.filter(r=>r==="Imposter").length<imp){
+    roles[Math.floor(Math.random()*total)]="Imposter";
+  }
+  passText.textContent="Pass to Player 1";
+  show("pass");
+}
+
+function reveal(){
+  playerTitle.textContent="Player "+current;
+  const r=roles[current-1];
+  role.textContent=r;
+  let shownWord = (r==="Imposter" && troll==="on") ? "Something else 😈" : (r==="Imposter"?"???":word);
+  wordEl.textContent=shownWord;
+  image.src=imageURL(category.value,shownWord);
   show("reveal");
 }
 
-function nextPlayer() {
+function next(){
   current++;
-  if (current > totalPlayers) show("play");
-  else {
-    document.getElementById("handoverText").textContent = "Pass to Player " + current;
-    show("handover");
+  if(current>total) show("end");
+  else{
+    passText.textContent="Pass to Player "+current;
+    show("pass");
   }
-}
-
-function resetGame() {
-  current = 1;
-  show("setup");
-}
-
-function show(id) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
 }
 </script>
 
 </body>
 </html>
-"""
-
-path = "/mnt/data/imposter_pass_play_app.html"
-with open(path, "w", encoding="utf-8") as f:
-    f.write(html_content)
-
-path
